@@ -1,0 +1,12 @@
+<?php
+
+$config = [
+    'config' => [
+        'slack' => [
+            'token' => ''
+        ]
+    ],
+
+    'to' => '#channelname',
+    'url' => 'http://secret',
+];
