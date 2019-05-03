@@ -12,6 +12,16 @@ use \Symfony\Component\DomCrawler\Crawler;
 
 class Grillbiffen
 {
+    protected $swedishDays = [
+            'Måndag',
+            'Tisdag',
+            'Onsdag',
+            'Torsdag',
+            'Fredag',
+            'Lördag',
+            'Söndag',
+        ];
+
     /**
      * @return array
      */
@@ -22,10 +32,21 @@ class Grillbiffen
         return $config;
     }
 
+    /**
+     * @return string
+     */
+    protected function getTodaysDaySwedish()
+    {
+        return $this->swedishDays[date('N')-1];
+    }
+
+    /**
+     * Get the node containing today's lunch
+     * @return Crawler
+     */
     protected function getTodaysNode()
     {
-        //TODO dynamic, it is not always Friday
-        $todayDay = 'Fredag';
+        $todayDay = $this->getTodaysDaySwedish();
         $client = new GClient();
         $crawler = $client
             ->setHeader('User-Agent', "Mozilla/5.0 (Windows NT 5.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/41.0.2272.101 Safari/537.36")
@@ -53,12 +74,16 @@ class Grillbiffen
             }
 
             if ($foundToday && $class === 'rest_box_lunch') {
-                print "Dagens lunch: $text \n";
                 return $node;
             }
         }
     }
 
+    /**
+     * Get the wanted strings from the crawler and return it readily formatted
+     * @param Crawler $node
+     * @return string
+     */
     protected function formatHTML(Crawler $node)
     {
         $result = [];
@@ -69,6 +94,11 @@ class Grillbiffen
         /** @var Crawler $node2 */
         foreach ($nodes as $node2) {
             $text = $node2->children()->first()->text();
+            // Skip whole day if one of these are found
+            if (in_array($text,['Ingen lunchservering'])) {
+                return '';
+            }
+            // Skip these lines
             if (in_array($text,['Lunchalternativ','Stående lunchbord','Salladsbord'])) {
                 continue;
             }
@@ -77,6 +107,12 @@ class Grillbiffen
         return implode("\n", $result);
     }
 
+    /**
+     * Send message to configured slack channels
+     *
+     * @param $message
+     * @throws \BotMan\BotMan\Exceptions\Base\BotManException
+     */
     protected function sendSlackMessage($message)
     {
         DriverManager::loadDriver(SlackRTMDriver::class);
@@ -84,13 +120,18 @@ class Grillbiffen
         /** @var BotMan $botman */
         $botman = BotManFactory::createForRTM($this->getConfig()['config'], $loop);
         $botman->say($message, $this->getConfig()['to']);
-        $loop->run();
+        //$loop->run();
     }
 
     public function run(){
         $node = $this->getTodaysNode();
         $formatted = $this->formatHTML($node);
-        $this->sendSlackMessage($formatted);
+        if ($formatted) {
+            print "Sending slack message $formatted\n";
+            $this->sendSlackMessage($formatted);
+        }else {
+            print "Not sending slack message\n";
+        }
     }
 }
 
