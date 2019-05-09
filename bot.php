@@ -12,6 +12,8 @@ use \Symfony\Component\DomCrawler\Crawler;
 
 class Grillbiffen
 {
+    const GRILLBIFF_IDENTIFIER = 'Grillbiff med';
+
     protected $swedishDays = [
             'Måndag',
             'Tisdag',
@@ -104,7 +106,38 @@ class Grillbiffen
             }
             $result[] = $text;
         }
+
+        $result = $this->lookForGrillbiff($result);
+
         return implode("\n", $result);
+    }
+
+    /**
+     * Insert an appropriate amount of emojis into the parsed message
+     * if Grillbiff is found
+     *
+     * @param array $result
+     *
+     * @return array
+     */
+    protected function lookForGrillbiff(array $result) : array
+    {
+        $grillbiffFound = false;
+
+        foreach ($result as $text) {
+            if (strpos($text, self::GRILLBIFF_IDENTIFIER) !== false) {
+                $grillbiffFound = true;
+                break;
+            }
+        }
+
+        if ($grillbiffFound) {
+            $str = str_repeat(':grillbiffidag:', 10);
+            array_unshift($result, $str);
+            $result[] = $str;
+        }
+
+        return $result;
     }
 
     /**
