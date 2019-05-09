@@ -13,14 +13,14 @@ use \Symfony\Component\DomCrawler\Crawler;
 class Grillbiffen
 {
     protected $swedishDays = [
-            'Måndag',
-            'Tisdag',
-            'Onsdag',
-            'Torsdag',
-            'Fredag',
-            'Lördag',
-            'Söndag',
-        ];
+        'Måndag',
+        'Tisdag',
+        'Onsdag',
+        'Torsdag',
+        'Fredag',
+        'Lördag',
+        'Söndag',
+    ];
 
     /**
      * @return array
@@ -37,7 +37,7 @@ class Grillbiffen
      */
     protected function getTodaysDaySwedish()
     {
-        return $this->swedishDays[date('N')-1];
+        return $this->swedishDays[date('N') - 1];
     }
 
     /**
@@ -89,17 +89,17 @@ class Grillbiffen
         $result = [];
         $nodes = $node->filter('tr')
             ->each(function (Crawler $node1) {
-            return $node1;
-        });
+                return $node1;
+            });
         /** @var Crawler $node2 */
         foreach ($nodes as $node2) {
             $text = $node2->children()->first()->text();
             // Skip whole day if one of these are found
-            if (in_array($text,['Ingen lunchservering'])) {
+            if (in_array($text, ['Ingen lunchservering'])) {
                 return '';
             }
             // Skip these lines
-            if (in_array($text,['Lunchalternativ','Stående lunchbord','Salladsbord'])) {
+            if (in_array($text, ['Lunchalternativ', 'Stående lunchbord', 'Salladsbord'])) {
                 continue;
             }
             $result[] = $text;
@@ -123,13 +123,14 @@ class Grillbiffen
         //$loop->run();
     }
 
-    public function run(){
+    public function run()
+    {
         $node = $this->getTodaysNode();
         $formatted = $this->formatHTML($node);
         if ($formatted) {
             print "Sending slack message $formatted\n";
             $this->sendSlackMessage($formatted);
-        }else {
+        } else {
             print "Not sending slack message\n";
         }
     }
