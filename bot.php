@@ -16,10 +16,19 @@ class Grillbiffen
         'Måndag',
         'Tisdag',
         'Onsdag',
+
+
+
+
+
         'Torsdag',
         'Fredag',
         'Lördag',
         'Söndag',
+
+
+
+
     ];
 
     /**
@@ -27,16 +36,23 @@ class Grillbiffen
      */
     protected function getConfig(): array
     {
+
+
+
+
         // TODO replace ugly hack
         include 'config.php';
         return $config;
+
+
+
+
     }
 
     /**
      * @return string
      */
-    protected function getTodaysDaySwedish()
-    {
+    protected function getTodaysDaySwedish            (){
         return $this->swedishDays[date('N') - 1];
     }
 
@@ -53,24 +69,39 @@ class Grillbiffen
             ->request('GET', $this->getConfig()['url']);
 
         $foundToday = false;
-        $nodeValues = $crawler->filter('div.restaurangsida_lunchbox')->first()->children()
+        $nodeValues = $crawler->filter('div.restaurangsida_lunchbox')
+
+            ->first()->children()
+
+
             ->each(function (Crawler $node) {
                 return [trim($node->attr('class')), $node];
             });
 
         foreach ($nodeValues as $nodeArr) {
+
+
+
             /** @var Crawler $node */
             $class = $nodeArr[0];
             $node = $nodeArr[1];
             $text = $node->text();
             // Search for correct day
             if (!$foundToday && $class === 'restaurangsida_dagrubrik') {
+
+
+
+
                 if (strpos($text, $todayDay) === 0) {
                     $foundToday = true;
                     continue;
                 } else {
                     continue;
                 }
+
+                
+
+
             }
 
             if ($foundToday && $class === 'rest_box_lunch') {
