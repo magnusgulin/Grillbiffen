@@ -12,7 +12,7 @@ use \Symfony\Component\DomCrawler\Crawler;
 
 class Grillbiffen
 {
-    const GRILLBIFF_IDENTIFIER = 'Grillbiff med';
+    const GRILLBIFF_IDENTIFIER = 'Grillbiff';
 
     protected $swedishDays = [
         'Måndag',
