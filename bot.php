@@ -13,6 +13,7 @@ use \Symfony\Component\DomCrawler\Crawler;
 class Grillbiffen
 {
     const GRILLBIFF_IDENTIFIER = 'Grillbiff';
+    const BACON_IDENTIFIER = 'Bacon';
 
     protected $swedishDays = [
         'Måndag',
@@ -108,6 +109,7 @@ class Grillbiffen
         }
 
         $result = $this->lookForGrillbiff($result);
+        $result = $this->lookForBacon($result);
 
         return implode("\n", $result);
     }
@@ -133,6 +135,34 @@ class Grillbiffen
 
         if ($grillbiffFound) {
             $str = str_repeat(':grillbiffidag:', 10);
+            array_unshift($result, $str);
+            $result[] = $str;
+        }
+
+        return $result;
+    }
+
+    /**
+     * Insert an appropriate amount of emojis into the parsed message
+     * if Bacon is found
+     *
+     * @param array $result
+     *
+     * @return array
+     */
+    protected function lookForBacon(array $result): array
+    {
+        $baconFound = false;
+
+        foreach ($result as $text) {
+            if (stripos($text, self::BACON_IDENTIFIER) !== false) {
+                $baconFound = true;
+                break;
+            }
+        }
+
+        if ($baconFound) {
+            $str = str_repeat(':bacon:', 10);
             array_unshift($result, $str);
             $result[] = $str;
         }
@@ -169,5 +199,5 @@ class Grillbiffen
     }
 }
 
-$grillbiffen = New Grillbiffen;
+$grillbiffen = new Grillbiffen;
 $grillbiffen->run();
