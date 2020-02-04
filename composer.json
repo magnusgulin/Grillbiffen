@@ -1,6 +1,7 @@
 {
     "require": {
         "botman/driver-slack": "^2.2",
-        "fabpot/goutte": "^3.2"
+        "fabpot/goutte": "^3.2",
+        "ext-dom": "*"
     }
 }
