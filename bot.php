@@ -2,6 +2,7 @@
 
 require 'vendor/autoload.php';
 
+use BotMan\BotMan\Exceptions\Base\BotManException;
 use React\EventLoop\Factory;
 use BotMan\BotMan\BotManFactory;
 use BotMan\BotMan\BotMan;
@@ -12,8 +13,17 @@ use \Symfony\Component\DomCrawler\Crawler;
 
 class Grillbiffen
 {
-    const GRILLBIFF_IDENTIFIER = 'Grillbiff';
-    const BACON_IDENTIFIER = 'Bacon';
+    public const GRILLBIFF_IDENTIFIER = 'Grillbiff';
+    public const GRILLBIFF_POSTFIX_BEAUTY = ':grillbiffidag:';
+    public const BACON_IDENTIFIER = 'Bacon';
+    public const BACON_POSTFIX_BEAUTY = ':bacon:';
+    public const USER_AGENT = 'Mozilla/5.0 (Windows NT 5.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/41.0.2272.101 Safari/537.36';
+
+    /**
+     * Copy the html from the scraped site into local.html and enable this to avoid creating
+     * requests to the scraped site.
+     */
+    public const USE_LOCAL_HTML = false;
 
     protected $swedishDays = [
         'Måndag',
@@ -37,79 +47,97 @@ class Grillbiffen
 
     /**
      * @return string
+     * @deprecated
      */
-    protected function getTodaysDaySwedish()
+    protected function getTodaysDaySwedish(): string
     {
         return $this->swedishDays[date('N') - 1];
     }
 
     /**
-     * Get the node containing today's lunch
-     * @return Crawler
+     * @return string
      */
-    protected function getTodaysNode()
+    protected function getTodaysDate(): string
     {
-        $todayDay = $this->getTodaysDaySwedish();
-        $client = new GClient();
-        $crawler = $client
-            ->setHeader('User-Agent', "Mozilla/5.0 (Windows NT 5.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/41.0.2272.101 Safari/537.36")
-            ->request('GET', $this->getConfig()['url']);
+        return date('d.m.Y');
+    }
 
-        $foundToday = false;
-        $nodeValues = $crawler->filter('div.restaurangsida_lunchbox')->first()->children()
-            ->each(function (Crawler $node) {
-                return [trim($node->attr('class')), $node];
+    /**
+     * Get today's dishes
+     * @return array
+     */
+    protected function getTodaysDishes($url): array
+    {
+        $todayDate = $this->getTodaysDate();
+        $result = [];
+        if (self::USE_LOCAL_HTML) {
+            $html = file_get_contents('local.html');
+            $crawler = new Crawler($html);
+
+        } else {
+            $client = new GClient();
+            $crawler = $client
+                ->setHeader('User-Agent', self::USER_AGENT)
+                ->request('GET', $url);
+        }
+
+        // Finds the 7 <div class='lunchlist  '> elements
+        $nodeValues = $crawler->filter('div.week-lunchlists > div.center')->first()->children()
+            ->each(static function (Crawler $node) {
+                return $node;
             });
 
-        foreach ($nodeValues as $nodeArr) {
-            /** @var Crawler $node */
-            $class = $nodeArr[0];
-            $node = $nodeArr[1];
-            $text = $node->text();
-            // Search for correct day
-            if (!$foundToday && $class === 'restaurangsida_dagrubrik') {
-                if (strpos($text, $todayDay) === 0) {
-                    $foundToday = true;
-                    continue;
-                } else {
-                    continue;
+        if (!$nodeValues) {
+            throw new \RuntimeException('No days found!');
+        }
+
+        /** @var Crawler $node */
+        foreach ($nodeValues as $node) {
+            //$text = $node->text();
+            $text = $node->filter('span.date')->first()->text();
+
+
+            // Skip if wrong day
+            if (strpos($text, $todayDate) !== 0) {
+                continue;
+            }
+
+            // Locates the <div class='lunch-items'> inside correct lunchlist element
+            $dishnodes = $node->filter('div.lunch-items')->first()->children()
+                ->each(static function (Crawler $node) {
+                    return $node;
+                });
+
+            foreach($dishnodes as $dishnode) {
+                /** @var DOMElement $dishnode */
+                $dishText = $dishnode->filter('p.name.focus')->text();
+                if ($dishText) {
+                    $result[] = $dishText;
                 }
             }
 
-            if ($foundToday && $class === 'rest_box_lunch') {
-                return $node;
-            }
+            return $result;
         }
     }
 
     /**
      * Get the wanted strings from the crawler and return it readily formatted
-     * @param Crawler $node
+     * @param array $dishes
      * @return string
      */
-    protected function formatHTML(Crawler $node)
+    protected function formatDishes(array $dishes): string
     {
         $result = [];
-        $nodes = $node->filter('tr')
-            ->each(function (Crawler $node1) {
-                return $node1;
-            });
-        /** @var Crawler $node2 */
-        foreach ($nodes as $node2) {
-            $text = $node2->children()->first()->text();
-            // Skip whole day if one of these are found
-            if (in_array($text, ['Ingen lunchservering'])) {
+
+        foreach ($dishes as $dishText) {
+            // Skip whole day if this is found
+            if (stripos($dishText,'Ingen lunchservering')) {
                 return '';
             }
-            // Skip these lines
-            if (in_array($text, ['Lunchalternativ', 'Stående lunchbord', 'Salladsbord'])) {
-                continue;
-            }
-            $result[] = $text;
+            $dishText = $this->beautifyGrillbiff($dishText);
+            $dishText = $this->beautifyBacon($dishText);
+            $result[] = $dishText;
         }
-
-        $result = $this->lookForGrillbiff($result);
-        $result = $this->lookForBacon($result);
 
         return implode("\n", $result);
     }
@@ -118,65 +146,41 @@ class Grillbiffen
      * Insert an appropriate amount of emojis into the parsed message
      * if Grillbiff is found
      *
-     * @param array $result
-     *
-     * @return array
+     * @param string $dishText
+     * @return string
      */
-    protected function lookForGrillbiff(array $result) : array
+    protected function beautifyGrillbiff(string $dishText) : string
     {
-        $grillbiffFound = false;
-
-        foreach ($result as $text) {
-            if (strpos($text, self::GRILLBIFF_IDENTIFIER) !== false) {
-                $grillbiffFound = true;
-                break;
-            }
+        if (stripos($dishText, self::GRILLBIFF_IDENTIFIER) !== false) {
+            $dishText .= ' ' . self::GRILLBIFF_POSTFIX_BEAUTY;
         }
 
-        if ($grillbiffFound) {
-            $str = str_repeat(':grillbiffidag:', 10);
-            array_unshift($result, $str);
-            $result[] = $str;
-        }
-
-        return $result;
+        return $dishText;
     }
 
     /**
      * Insert an appropriate amount of emojis into the parsed message
      * if Bacon is found
      *
-     * @param array $result
-     *
-     * @return array
+     * @param string $dishText
+     * @return string
      */
-    protected function lookForBacon(array $result): array
+    protected function beautifyBacon(string $dishText): string
     {
-        $baconFound = false;
-
-        foreach ($result as $text) {
-            if (stripos($text, self::BACON_IDENTIFIER) !== false) {
-                $baconFound = true;
-                break;
-            }
+        if (stripos($dishText, self::BACON_IDENTIFIER) !== false) {
+            $dishText .= ' ' . self::BACON_POSTFIX_BEAUTY;
         }
 
-        if ($baconFound) {
-            $str = str_repeat(':bacon:', 10);
-            array_unshift($result, $str);
-            $result[] = $str;
-        }
-
-        return $result;
+        return $dishText;
     }
 
     /**
      * Send message to configured slack channels
      *
      * @param $message
-     * @throws \BotMan\BotMan\Exceptions\Base\BotManException
+     * @throws BotManException
      */
-    protected function sendSlackMessage($message)
+    protected function sendSlackMessage($message): void
     {
         DriverManager::loadDriver(SlackRTMDriver::class);
         $loop = Factory::create();
@@ -186,10 +190,23 @@ class Grillbiffen
         //$loop->run();
     }
 
-    public function run()
+    /**
+     * @throws BotManException
+     */
+    public function run(): void
     {
-        $node = $this->getTodaysNode();
-        $formatted = $this->formatHTML($node);
+        // Get swedish dishes
+        $dishes = $this->getTodaysDishes($this->getConfig()['url_sv']);
+        $formatted = $this->formatDishes($dishes);
+        if($formatted) {
+            $formatted .= "\n";
+        }
+
+
+        // Get finnish dishes
+        $dishes = $this->getTodaysDishes($this->getConfig()['url_fi']);
+        $formatted .= $this->formatDishes($dishes);
+
         if ($formatted) {
             print "Sending slack message $formatted\n";
             $this->sendSlackMessage($formatted);
