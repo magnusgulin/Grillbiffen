@@ -13,9 +13,11 @@ use \Symfony\Component\DomCrawler\Crawler;
 
 class Grillbiffen
 {
-    public const GRILLBIFF_IDENTIFIER = 'Grillbiff';
+    // Note, identifiers should be added lowercase
+    public const GRILLBIFF_IDENTIFIERS = ['grillbiff', 'grillipihvi'];
     public const GRILLBIFF_POSTFIX_BEAUTY = ':grillbiffidag:';
-    public const BACON_IDENTIFIER = 'Bacon';
+
+    public const BACON_IDENTIFIERS = ['bacon', 'pekoni'];
     public const BACON_POSTFIX_BEAUTY = ':bacon:';
     public const USER_AGENT = 'Mozilla/5.0 (Windows NT 5.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/41.0.2272.101 Safari/537.36';
 
@@ -55,6 +57,7 @@ class Grillbiffen
     }
 
     /**
+     * Returns today's date in format 05.02.2020
      * @return string
      */
     protected function getTodaysDate(): string
@@ -151,7 +154,8 @@ class Grillbiffen
      */
     protected function beautifyGrillbiff(string $dishText) : string
     {
-        if (stripos($dishText, self::GRILLBIFF_IDENTIFIER) !== false) {
+        // Check all identifiers by removing them and comparing with original string
+        if (str_replace(self::GRILLBIFF_IDENTIFIERS, '',strtolower($dishText)) !== strtolower($dishText)) {
             $dishText .= ' ' . self::GRILLBIFF_POSTFIX_BEAUTY;
         }
 
@@ -167,7 +171,8 @@ class Grillbiffen
      */
     protected function beautifyBacon(string $dishText): string
     {
-        if (stripos($dishText, self::BACON_IDENTIFIER) !== false) {
+        // Check all identifiers by removing them and comparing with original string
+        if (str_replace(self::BACON_IDENTIFIERS, '',strtolower($dishText)) !== strtolower($dishText)) {
             $dishText .= ' ' . self::BACON_POSTFIX_BEAUTY;
         }
 
