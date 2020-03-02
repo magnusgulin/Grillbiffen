@@ -105,15 +105,9 @@ class Grillbiffen
                 continue;
             }
 
-            // Locates the <div class='lunch-items'> inside correct lunchlist element
-            $dishnodes = $node->filter('div.lunch-items')->first()->children()
-                ->each(static function (Crawler $node) {
-                    return $node;
-                });
-
-            foreach($dishnodes as $dishnode) {
+            foreach($node->filter('p.name.focus') as $dishnode) {
                 /** @var DOMElement $dishnode */
-                $dishText = $dishnode->filter('p.name.focus')->text();
+                $dishText =  $dishnode->textContent;
                 if ($dishText) {
                     $result[] = $dishText;
                 }
