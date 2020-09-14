@@ -185,7 +185,16 @@ class Grillbiffen
         $loop = Factory::create();
         /** @var BotMan $botman */
         $botman = BotManFactory::createForRTM($this->getConfig()['config'], $loop);
-        $botman->say($message, $this->getConfig()['to']);
+        $botman->say(
+            $message,
+            $this->getConfig()['to'],
+            null,
+            [
+                // unfurl_* stops the preview from showing on links
+                'unfurl_links'=> false,
+                'unfurl_media'=> false
+            ]
+        );
         //$loop->run();
     }
 
@@ -194,19 +203,25 @@ class Grillbiffen
      */
     public function run(): void
     {
+        $formatted = '';
         // Get swedish dishes
         $dishes = $this->getTodaysDishes($this->getConfig()['url_sv']);
-        $formatted = $this->formatDishes($dishes);
-        if($formatted) {
+        $swedishDishes = $this->formatDishes($dishes);
+        if($swedishDishes) {
+            // Add url
+            $formatted .= $this->getConfig()['url_sv']."\n" . $swedishDishes;
+            // Add newline
             $formatted .= "\n";
         }
 
 
         // Get finnish dishes
         $dishes = $this->getTodaysDishes($this->getConfig()['url_fi']);
-        $formatted .= $this->formatDishes($dishes);
+        $finnishDishes = $this->formatDishes($dishes);
 
-        if ($formatted) {
+        if ($finnishDishes) {
+            // Add url
+            $formatted .= $this->getConfig()['url_fi']."\n" . $finnishDishes;
             print "Sending slack message $formatted\n";
             $this->sendSlackMessage($formatted);
         } else {
